@@ -592,6 +592,74 @@ export default function EditAccountPage({
             onSelectNewHub={onSelectNewHub}
           />
         );
+      } else if (i.type === "interests") {
+        const onSelectNewHub = (event) => {
+          event.preventDefault();
+          const hub = allHubs.find((h) => h.name === event.target.value);
+          if (
+            editedAccount.info.interests.hubs?.filter((h) => h.url_slug === hub.url_slug)
+              ?.length === 0
+          ) {
+            setEditedAccount({
+              ...editedAccount,
+              info: {
+                ...editedAccount.info,
+                interests: {
+                  hubs: [...editedAccount.info.interests.hubs, hub],
+                  descriptions: {
+                    ...editedAccount?.info?.interests?.descriptions,
+                    [hub.url_slug]: "",
+                  },
+                },
+              },
+            });
+          }
+        };
+        const onClickRemoveHub = (hub) => {
+          const interestHubsAfterRemoval = editedAccount?.info?.interests.hubs?.filter(
+            (h) => h.url_slug !== hub.url_slug
+          );
+          const interestInfoAfterRemoval = editedAccount?.info?.interests.descriptions;
+          delete interestInfoAfterRemoval[hub.url_slug];
+          setEditedAccount({
+            ...editedAccount,
+            info: {
+              ...editedAccount.info,
+              interests: { hubs: interestHubsAfterRemoval, descriptions: interestInfoAfterRemoval },
+            },
+          });
+        };
+        const onInterestInfoTextFieldChange = (hubUrlSlug, description) => {
+          setEditedAccount({
+            ...editedAccount,
+            info: {
+              ...editedAccount.info,
+              interests: {
+                ...editedAccount.info.interests,
+                descriptions: {
+                  ...editedAccount.info.interests.descriptions,
+                  [hubUrlSlug]: description.substring(0, 256),
+                },
+              },
+            },
+          });
+        };
+        return (
+          <ActiveHubsSelect
+            selectedHubs={editedAccount?.info?.interests.hubs}
+            hubsToSelectFrom={allHubs.filter(
+              (h) =>
+                editedAccount?.info?.interests.hubs?.filter(
+                  (addedHub) => addedHub.url_slug === h.url_slug
+                ).length === 0
+            )}
+            interestsInfo={editedAccount.info.interests.descriptions}
+            type="userprofile"
+            onClickRemoveHub={onClickRemoveHub}
+            onSelectNewHub={onSelectNewHub}
+            onInterestsInfoTextFieldChange={onInterestInfoTextFieldChange}
+          />
+        );
       } else if (key != "parent_organization" && ["text", "bio"].includes(i.type)) {
         //This is the fallback for normal textfields
         return (

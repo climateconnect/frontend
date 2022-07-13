@@ -1,20 +1,10 @@
-import { Typography } from "@material-ui/core";
-import { makeStyles } from "@material-ui/core/styles";
 import React, { useContext } from "react";
 import { getLocalePrefix } from "../../../public/lib/apiOperations";
 import getTexts from "../../../public/texts/texts";
 import UserContext from "../context/UserContext";
 import Form from "./../general/Form";
 
-const useStyles = makeStyles({
-  appealText: {
-    textAlign: "center",
-    fontWeight: "bold",
-  },
-});
-
 export default function BasicInfo({ handleSubmit, errorMessage, values }) {
-  const classes = useStyles();
   const { locale } = useContext(UserContext);
   const texts = getTexts({ page: "profile", locale: locale });
   const fields = [
@@ -43,6 +33,8 @@ export default function BasicInfo({ handleSubmit, errorMessage, values }) {
 
   const messages = {
     submitMessage: texts.next_step,
+    explanationMessage: texts.create_your_personal_account_you_will_have_the_opportunity,
+    headingMessage: texts.sign_up_heading,
     headerMessage: texts.step_1_basic_information,
     bottomMessage: texts.already_have_an_account,
   };
@@ -53,20 +45,12 @@ export default function BasicInfo({ handleSubmit, errorMessage, values }) {
   };
 
   return (
-    <>
-      <Typography color="secondary" className={classes.appealText}>
-        {texts.here_you_can_create_your_personal_account}
-      </Typography>
-      <Typography color="secondary" className={classes.appealText}>
-        {texts.you_will_have_an_opportunity_to_create_or_add_an_organization_once_signed_up}
-      </Typography>
-      <Form
-        fields={fields}
-        messages={messages}
-        bottomLink={bottomLink}
-        onSubmit={(event, values) => handleSubmit(event, values)}
-        errorMessage={errorMessage}
-      />
-    </>
+    <Form
+      fields={fields}
+      messages={messages}
+      bottomLink={bottomLink}
+      onSubmit={(event, values) => handleSubmit(event, values)}
+      errorMessage={errorMessage}
+    />
   );
 }

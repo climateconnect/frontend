@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from climateconnect_api.models import Availability, Skill, UserProfile
+from climateconnect_api.models.interests import UserInterests
 from climateconnect_api.models.language import Language
 from climateconnect_api.models.user import UserProfileTranslation
 from climateconnect_api.pagination import (MembersPagination,
@@ -85,10 +86,6 @@ class LoginView(KnoxLoginView):
                 'message': _('Invalid email or password')
             }, status=status.HTTP_401_UNAUTHORIZED)
 
-        return Response({
-            'message': 'Invalid password.'
-        }, status=status.HTTP_401_UNAUTHORIZED)
-
 
 class SignUpView(APIView):
     permission_classes = [AllowAny]
@@ -129,6 +126,10 @@ class SignUpView(APIView):
             user_profile.from_tutorial = request.data['from_tutorial']
         if "is_activist" in request.data:
             user_profile.is_activist = request.data['is_activist']
+        if 'interests' in request.data:
+            for hub_url_slug, description in request.data["interests"].items():
+                hub = Hub.objects.get(url_slug=hub_url_slug)
+                UserInterests.objects.create(user=user, hub=hub, description=description)
         if "last_completed_tutorial_step" in request.data:
             user_profile.last_completed_tutorial_step = request.data['last_completed_tutorial_step']
         if settings.AUTO_VERIFY == True:
@@ -138,7 +139,7 @@ class SignUpView(APIView):
             send_user_verification_email(user, user_profile.verification_key)
             message = "You're almost done! We have sent an email with a confirmation link to {}. Finish creating your account by clicking the link.".format(user.email)  # NOQA
         user_profile.save()
-
+        
         return Response({'success': message}, status=status.HTTP_201_CREATED)
 
 
@@ -374,6 +375,14 @@ class EditUserProfile(APIView):
                     logger.error("Passed skill id {} does not exists")
 
         user_profile.save()
+
+        if 'interests' in request.data:
+            for hub_url_slug, interest_description in request.data["interests"].items():
+                hub = Hub.objects.get(url_slug=hub_url_slug)
+                interest, _ = UserInterests.objects.get_or_create(user=user, hub=hub)#, description=interest_description)
+                interest.description=interest_description
+                interest.save()
+            UserInterests.objects.filter(user=user).exclude(hub__url_slug__in=request.data["interests"].keys()).delete()
 
         items_to_translate = [
             {

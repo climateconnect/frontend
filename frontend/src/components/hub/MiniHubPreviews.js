@@ -23,10 +23,13 @@ const useStyles = makeStyles((theme) => ({
 export default function MiniHubPreviews({
   hubs,
   allHubs,
+  interestsInfo,
   allowCreate,
   editMode,
+  allowDescription,
   onSelectNewHub,
   onClickRemoveHub,
+  onInterestsInfoTextFieldChange,
 }) {
   const classes = useStyles();
   return (
@@ -40,6 +43,9 @@ export default function MiniHubPreviews({
             editMode={editMode}
             isFirstItem={index === 0}
             onClickRemoveHub={onClickRemoveHub}
+            allowDescription={allowDescription}
+            onInterestsInfoTextFieldChange={onInterestsInfoTextFieldChange}
+            interestsInfo={interestsInfo}
           />
         ))}
       {allowCreate && (
@@ -62,6 +68,9 @@ function GridItem({
   hubsToSelectFrom,
   onSelectNewHub,
   onClickRemoveHub,
+  allowDescription,
+  onInterestsInfoTextFieldChange,
+  interestsInfo,
 }) {
   return (
     <Grid
@@ -70,16 +79,19 @@ function GridItem({
       xs={12}
       sm={editMode ? 6 : 12}
       md={8}
-      lg={6}
+      lg={!createMode && !editMode && allowDescription ? 4 : 6} // 3 elements in a row for when you view the user profile
       component="li"
     >
       <MiniHubPreview
         hub={hub}
+        interestsInfo={interestsInfo}
         createMode={createMode}
         editMode={editMode}
+        allowDescription={allowDescription}
         hubsToSelectFrom={hubsToSelectFrom}
         onSelect={onSelectNewHub}
         onClickRemoveHub={onClickRemoveHub}
+        onInterestsInfoTextFieldChange={onInterestsInfoTextFieldChange}
       />
     </Grid>
   );

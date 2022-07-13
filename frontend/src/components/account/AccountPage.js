@@ -250,6 +250,14 @@ export default function AccountPage({
             );
           } else if (i.type === "hubs") {
             return <MiniHubPreviews hubs={i.value} />;
+          } else if (i.type === "interests") {
+            return (
+              <MiniHubPreviews
+                hubs={i.value.hubs}
+                interestsInfo={i.value.descriptions}
+                allowDescription
+              />
+            );
           } else if (i.type === "select" && value) {
             const textValue = i.options ? i.options.find((o) => o?.key === value).name : value;
             return (

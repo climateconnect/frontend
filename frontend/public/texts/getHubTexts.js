@@ -120,6 +120,20 @@ export default function getHubTexts({ hubName }) {
       en: "Add Hubs (sectors) in which your organization is active",
       de: "Füge Hubs (Aktivitätsbereiche) hinzu, in denen deine Organisation aktiv ist",
     },
+    you_can_describe_why_you_are_interested: {
+      en:
+        "Here you can describe why this sector interests you or what connection you have to this sector, for example maybe you work in this sector (optional)",
+      de:
+        "Hier kannst du beschreiben, wiso dich speziel dieser Sektor interessiert. Vielleich arbeitest du schon in diesem Sektor oder du hälst Veränderungen in diesem Sektor für sehr wichtig. (optional)",
+    },
+    briefly_summarise_why_you_are_interested_part_one: {
+      en: "Briefly summarise why you are interested in this sector (",
+      de: "Fasse kurz zusammen, wieso du dich für diesen Sektor interessierst (",
+    },
+    briefly_summarise_why_you_are_interested_part_two: {
+      en: " / 256 characters)",
+      de: " / 256 Zeichen)",
+    },
   };
 
   if (hubName === "Fashion") return { ...generalHubTexts, ...getFashionHubDescription() };

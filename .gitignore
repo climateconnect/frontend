@@ -3,6 +3,7 @@
 # misc
 .DS_Store
 .env*
+backend/climateconnect_api/tests/test_recommendations_email
 
 # debug
 npm-debug.log*
@@ -10,7 +11,8 @@ yarn-debug.log*
 yarn-error.log*
 
 .backend_env*
-/backend/media
+/backend/media/*
+!/backend/media/test
 */__pycache__/
 __pycache__
 *.swp
