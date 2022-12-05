@@ -7,6 +7,7 @@ import {
   Tooltip,
   Typography,
   Divider,
+  Box,
 } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import PlaceIcon from "@material-ui/icons/Place";
@@ -39,16 +40,13 @@ import SubTitleWithContent from "../general/SubTitleWithContent";
 
 const useStyles = makeStyles((theme) => ({
   avatarContainer: {
-    [theme.breakpoints.up("sm")]: {
-      marginRight: theme.spacing(5),
-      marginLeft: theme.spacing(5),
-    },
+    display: "flex",
+    marginTop: theme.spacing(-15),
+    justifyContent: "center",
   },
   avatar: {
     height: theme.spacing(20),
     width: theme.spacing(20),
-    margin: "0 auto",
-    marginTop: theme.spacing(-15),
     fontSize: 50,
     border: "4px solid white",
     backgroundcolor: "white",
@@ -57,25 +55,7 @@ const useStyles = makeStyles((theme) => ({
       backgroundColor: "white",
     },
   },
-  avatarWithInfo: {
-    textAlign: "center",
-    width: theme.spacing(40),
-    margin: "0 auto",
-    [theme.breakpoints.up("sm")]: {
-      margin: 0,
-      marginLeft: theme.spacing(-5),
-      display: "inline-block",
-      width: "auto",
-    },
-  },
-  accountInfo: (props) => ({
-    padding: 0,
-    marginTop: theme.spacing(1),
-    marginRight: props.isOwnAccount ? theme.spacing(0.5) : 0,
-  }),
-  editButtonWrapper: {
-    flex: "1 0 auto",
-  },
+
   name: {
     fontWeight: "bold",
     padding: theme.spacing(1),
@@ -89,21 +69,18 @@ const useStyles = makeStyles((theme) => ({
     wordBreak: "break-word",
   },
   content: {
-    paddingBottom: theme.spacing(2),
     color: `${theme.palette.secondary.main}`,
     fontSize: 16,
+    paddingBottom: theme.spacing(2),
     wordBreak: "break-word",
+  },
+  location: {
+    marginBottom: theme.spacing(2),
   },
   noPadding: {
     padding: 0,
   },
-  infoContainer: {
-    [theme.breakpoints.up("sm")]: {
-      display: "flex",
-      alignItems: "center",
-    },
-    position: "relative",
-  },
+
   noprofile: {
     textAlign: "center",
     padding: theme.spacing(5),
@@ -111,15 +88,17 @@ const useStyles = makeStyles((theme) => ({
   marginTop: {
     marginTop: theme.spacing(1),
   },
+  chip: (props) => ({
+    marginBottom: props.isOrganization ? theme.spacing(0.5) : theme.spacing(1),
+    minWidth: 200,
+    borderRadius: 20,
+  }),
+
   marginBottom: {
     marginBottom: theme.spacing(1),
   },
   marginRight: {
     marginRight: theme.spacing(0.5),
-  },
-  chip: {
-    marginBottom: theme.spacing(1),
-    marginRight: theme.spacing(1),
   },
   editButton: {
     position: "relative",
@@ -171,6 +150,64 @@ const useStyles = makeStyles((theme) => ({
   miniOrgPreview: {
     display: "flex",
   },
+
+  website: {
+    marginTop: theme.spacing(1),
+  },
+  websiteLink: {
+    marginTop: theme.spacing(-0.25),
+    fontStyle: "italic",
+    fontSize: 13,
+    wordBreak: "break-word",
+  },
+
+  socialMediaLink: {
+    height: 20,
+    marginRight: theme.spacing(1),
+    marginTop: theme.spacing(1),
+    marginLeft: theme.spacing(1),
+    color: theme.palette.primary.main,
+  },
+  mainContainer: {
+    display: "flex",
+    flexDirection: "column",
+    [theme.breakpoints.up("md")]: {
+      flexDirection: "row",
+    },
+  },
+  leftInfoContainer: {
+    display: "flex",
+    flexDirection: "column",
+    textAlign: "center",
+    [theme.breakpoints.up("md")]: {
+      marginLeft: theme.spacing(-3),
+      width: "25%",
+    },
+  },
+  middleInfoContainer: {
+    display: "flex",
+    flexDirection: "column",
+    [theme.breakpoints.up("md")]: {
+      width: "60%",
+      marginTop: theme.spacing(1),
+    },
+  },
+  buttonInfoContainer: {
+    [theme.breakpoints.up("md")]: {
+      marginRight: theme.spacing(-3),
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+    },
+  },
+  followButton: {
+    marginTop: theme.spacing(1),
+    width: 225,
+  },
+  sideButton: {
+    width: 225,
+    marginTop: theme.spacing(5),
+  },
   sizeContainer: {
     display: "flex",
     flexDirection: "column",
@@ -185,6 +222,9 @@ const useStyles = makeStyles((theme) => ({
   selectContainer: {
     display: "flex",
     flexDirection: "row",
+  },
+  followButtonContainer: {
+    marginTop: theme.spacing(1),
   },
 }));
 
@@ -209,7 +249,7 @@ export default function AccountPage({
   followingChangePending,
   isUserFollowing,
 }) {
-  const classes = useStyles({ isOwnAccount: isOwnAccount });
+  const classes = useStyles({ isOwnAccount: isOwnAccount, isOrganization: isOrganization });
   const { locale, user } = useContext(UserContext);
   const token = new Cookies().get("auth_token");
   const texts = getTexts({ page: "profile", locale: locale });
@@ -325,7 +365,6 @@ export default function AccountPage({
       .map((key, index) => {
         if (info[key]) {
           const i = getFullInfoElement(infoMetadata, key, info[key]);
-
           const value = Array.isArray(i.value) ? i.value.join(", ") : i.value;
           const additionalText = i.additionalText ? i.additionalText : "";
           if (key === "parent_organization") {
@@ -357,7 +396,7 @@ export default function AccountPage({
                 </div>
               </div>
             );
-          } else if (i.linkify && value) {
+          } else if (i.linkify && value && !isOrganization) {
             return (
               <>
                 <div className={classes.subtitle}>{i.name}:</div>
@@ -470,8 +509,9 @@ export default function AccountPage({
           )}
         </div>
       </div>
-      <Container className={classes.infoContainer}>
-        <Container className={classes.avatarWithInfo}>
+
+      <Container className={classes.mainContainer}>
+        <Container className={classes.leftInfoContainer}>
           <div className={classes.avatarContainer}>
             {account.badges?.length > 0 ? (
               <ProfileBadge badge={account.badges[0]}>
@@ -486,7 +526,7 @@ export default function AccountPage({
           </Typography>
           {location && (
             <div>
-              <div className={classes.content}>
+              <div className={classes.location}>
                 <Tooltip title="Location">
                   <PlaceIcon color="primary" className={classes.infoIcon} />
                 </Tooltip>
@@ -502,7 +542,16 @@ export default function AccountPage({
             </Container>
           )}
           {isOrganization && (
-            <>
+            <div className={classes.website}>
+              <Typography variant="caption"> {organizationTexts.find_us_here} </Typography>
+              <Linkify componentDecorator={componentDecorator}>
+                {" "}
+                <Typography className={classes.websiteLink}> {account.info.website}</Typography>
+              </Linkify>
+            </div>
+          )}
+          {isOrganization && (
+            <div className={classes.followButtonContainer}>
               <FollowButton
                 isUserFollowing={isUserFollowing}
                 handleToggleFollow={handleToggleFollowOrganization}
@@ -521,17 +570,28 @@ export default function AccountPage({
               <Typography className={classes.followInfo}>
                 {organizationTexts.follow_this_organization_for_updates}
               </Typography>
-            </>
+            </div>
           )}
         </Container>
+        <Container className={classes.middleInfoContainer}>
+          {displayAccountInfo(account.info)}
+        </Container>
 
-        <Container className={classes.accountInfo}>{displayAccountInfo(account.info)}</Container>
-        {isOwnAccount && !isSmallScreen && (
-          <div className={classes.editButtonWrapper}>
-            <Button variant="contained" color="primary" href={editHref}>
-              <EditSharpIcon className={classes.innerIcon} />
-              {editText ? editText : texts.edit_profile}
-            </Button>
+        {user && (
+          <div className={classes.buttonInfoContainer}>
+            {!isSmallScreen && isOwnAccount && (
+              <>
+                <Button
+                  className={classes.sideButton}
+                  variant="contained"
+                  color="primary"
+                  href={editHref}
+                >
+                  <EditSharpIcon className={classes.innerIcon} />
+                  {editText ? editText : texts.edit_profile}
+                </Button>
+              </>
+            )}
           </div>
         )}
       </Container>
@@ -550,7 +610,6 @@ export default function AccountPage({
         noFollowersText={organizationTexts.this_organzation_does_not_have_any_followers_yet}
         followingSinceText={organizationTexts.following_since}
       />
-
       <ConfirmDialog
         open={confirmDialogOpen.follow}
         onClose={onFollowDialogClose}

@@ -279,7 +279,10 @@ export default function getOrganizationTexts({ organization, locale }) {
       en: "Skip for now",
       de: "Erstmal überspringen",
     },
-
+    our_local_groups: {
+      en: "Our local groups:",
+      de: "Unsere lokalen Gruppen:",
+    },
     please_log_in_to_follow_an_organization: {
       en: "Please log in to follow an organization.",
       de: "Bitte logge dich ein, um einer Organisation zu folgen.",
@@ -358,6 +361,10 @@ export default function getOrganizationTexts({ organization, locale }) {
       en: `${organization?.name} is active in these sectors`,
       de: `${organization?.name} ist in diesen Bereichen aktiv`,
     },
+    find_us_here: {
+      en: "Find us here:",
+      de: "FInde uns unter:",
+    }
     someone_has_already_created_organization: {
       en: "Someone has already created the organization ",
       de: "Jemand erstellte bereits die Organisation ",

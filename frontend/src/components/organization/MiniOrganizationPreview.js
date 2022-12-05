@@ -27,7 +27,6 @@ const useStyles = makeStyles((theme) => ({
     display: "inline-block",
     verticalAlign: "middle",
     marginRight: theme.spacing(1),
-    wordBreak: "break-word",
   },
   wrapper: {
     display: "inline-flex",
@@ -48,6 +47,7 @@ export default function MiniOrganizationPreview({
   doNotShowName,
 }) {
   const { locale } = useContext(UserContext);
+
   if (!nolink)
     return (
       <Link
