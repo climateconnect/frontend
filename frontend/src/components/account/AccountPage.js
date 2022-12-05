@@ -7,6 +7,7 @@ import {
   Tooltip,
   Typography,
   Divider,
+  IconButton,
 } from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
 import PlaceIcon from "@material-ui/icons/Place";
@@ -24,7 +25,6 @@ import ProfileBadge from "../profile/ProfileBadge";
 import SocialMediaShareButton from "../shareContent/SocialMediaShareButton";
 import UserContext from "../context/UserContext";
 import EditSharpIcon from "@material-ui/icons/EditSharp";
-import IconButton from "@material-ui/core/IconButton";
 
 import ConfirmDialog from "../dialogs/ConfirmDialog";
 import FollowersDialog from "../dialogs/FollowersDialog";
@@ -373,11 +373,16 @@ export default function AccountPage({
               </div>
             );
           } else if (i.type === "hubs") {
+            const maxHubsToShow = 2;
             return (
               <>
                 {i.value.length > 0 && <div className={classes.subtitle}>{i.name}:</div>}
-
-                <MiniHubPreviews hubs={i.value} />
+                {i.value.length > 0 && i.value.length <= maxHubsToShow && (
+                  <MiniHubPreviews hubs={i.value} texts={texts} />
+                )}
+                {i.value.length > maxHubsToShow && (
+                  <MiniHubPreviews hubs={i.value} maxHubsToShow={maxHubsToShow} texts={texts} />
+                )}
               </>
             );
           } else if (i.type === "select" && value) {
