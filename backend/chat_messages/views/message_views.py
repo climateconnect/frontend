@@ -1,11 +1,15 @@
 from heapq import merge
 from itertools import chain
 import itertools
+from climateconnect_api.utility.user import get_user_location_from_search
+from location.utility import get_location_with_range
+from chat_messages.utility.chat import filter_chats, get_initial_chat_ids_from_user
 from chat_messages.utility.notification import create_chat_message_notification
 from climateconnect_api.utility.notification import (
     create_email_notification,
     create_user_notification,
 )
+
 from chat_messages.models.message import MessageReceiver
 from django.utils import timezone
 from rest_framework.views import APIView
@@ -155,26 +159,12 @@ class GetChatsView(ListAPIView):
 
     def get_queryset(self):
 
-        chat_ids = Participant.objects.filter(
-            user=self.request.user, is_active=True
-        ).values_list("chat", flat=True)
+        chat_ids = get_initial_chat_ids_from_user(self.request.user)
 
         chats = MessageParticipants.objects.filter(id__in=chat_ids)
 
         if chats.exists():
-            filtered_chats = chats
-            for chat in chats:
-                number_of_participants = Participant.objects.filter(
-                    chat=chat, is_active=True
-                ).count()
-                if (
-                    not chat.name
-                    and not Message.objects.filter(message_participant=chat).exists()
-                    and number_of_participants == 2
-                ):
-                    filtered_chats = filtered_chats.exclude(id=chat.id)
-
-            return filtered_chats
+            return filter_chats(chats)
         else:
             return []
 
@@ -182,27 +172,70 @@ class GetChatsView(ListAPIView):
 class GetSearchedChat(ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = MessageParticipantSerializer
-
     pagination_class = ChatsPagination
 
     def get_queryset(self):
-        query = self.request.query_params.get("search")
         current_user_full_name = (
             self.request.user.first_name + " " + self.request.user.last_name
         )
+        chat_ids = get_initial_chat_ids_from_user(self.request.user)
 
-        chat_ids = (
-            Participant.objects.select_related("chat")
-            .filter(user=self.request.user, is_active=True)
-            .values_list("chat", flat=True)
-        )
+        # gets chats based on search by name of user
+        if "search" in self.request.query_params:
+            query = self.request.query_params.get("search")
 
-        chats = MessageParticipants.objects.filter(
-            Q(
-                participant_participants__in=Participant.objects.select_related("chat")
-                .filter(
+            chats = MessageParticipants.objects.filter(
+                Q(
+                    participant_participants__in=Participant.objects.select_related(
+                        "chat"
+                    )
+                    .filter(
+                        chat__in=chat_ids,
+                        user__user_profile__name__icontains=query,
+                        is_active=True,
+                    )
+                    .exclude(
+                        chat__in=chat_ids,
+                        user__user_profile__name=current_user_full_name,
+                        is_active=True,
+                    )
+                )
+                | Q(name__icontains=query, id__in=chat_ids)
+            ).distinct()
+            return chats
+
+        # gets chats based on wether or not user was the not the last one to send a message
+        if "requires_reply" in self.request.query_params:
+            all_chats = MessageParticipants.objects.filter(id__in=chat_ids)
+            if all_chats.exists():
+                chats = all_chats
+                for chat in all_chats:
+                    message = (
+                        Message.objects.filter(message_participant=chat)
+                        .order_by("-sent_at")
+                        .first()
+                    )
+                    if message is not None:
+                        if message.sender.id == self.request.user.id:
+                            chats = chats.exclude(id=chat.id)
+            else:
+                return []
+
+            if chats.exists():
+                return filter_chats(chats)
+            else:
+                return []
+
+        # gets chats based on search by location of users
+        if (
+            "place" in self.request.query_params
+            and "osm" in self.request.query_params
+            and "loc_type" in self.request.query_params
+        ):
+            # obtain the participants of each chat
+            chat_participants = (
+                Participant.objects.filter(
                     chat__in=chat_ids,
-                    user__user_profile__name__icontains=query,
                     is_active=True,
                 )
                 .exclude(
@@ -210,11 +243,29 @@ class GetSearchedChat(ListAPIView):
                     user__user_profile__name=current_user_full_name,
                     is_active=True,
                 )
+                .values_list("user", flat=True)
             )
-            | Q(name__icontains=query, id__in=chat_ids)
-        ).distinct()
 
-        return chats
+            # obtain user profiles of the participants
+            users = UserProfile.objects.filter(user__in=chat_participants)
+
+            # obtain the users that are from the filtered location
+            location_data = get_location_with_range(self.request.query_params)
+            users = get_user_location_from_search(users, location_data)
+
+            # find participants from filtered users and requesting users chat ids
+            filtered_participants = Participant.objects.filter(
+                user__user_profile__in=users, chat__in=chat_ids
+            )
+
+            filtered_chats = MessageParticipants.objects.filter(
+                participant_participants__in=filtered_participants
+            )
+
+            if filtered_chats.exists():
+                return filter_chats(filtered_chats)
+            else:
+                return []
 
 
 class GetChatMessages(ListAPIView):

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import getTexts from "../../../../public/texts/texts";
 import UserContext from "../../../../src/components/context/UserContext";
@@ -20,15 +20,15 @@ const useStyles = makeStyles(() => {
   };
 });
 
-export default function ChatSearchField({ cancelChatSearch, applyFilterToChats }) {
+export default function ChatSearchField({ cancelChatSearch, applyFilterByNameToChats }) {
   const classes = useStyles();
-  const { locale } = React.useContext(UserContext);
+  const { locale } = useContext(UserContext);
   const texts = getTexts({ page: "chat", locale: locale });
 
   return (
     <>
       <ApplyFilterSearchBar
-        applyFilterToChats={applyFilterToChats}
+        applyFilterByNameToChats={applyFilterByNameToChats}
         label={texts.enter_chat_name_to_open}
         freeSolo
         helperText={texts.type_the_name_of_a_user_or_group_to_open_a_chat_with}
