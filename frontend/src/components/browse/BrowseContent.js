@@ -262,8 +262,7 @@ export default function BrowseContent({
       });
       const locationFilter = possibleFilters.find((f) => f.type === "location");
       queryObject[locationFilter.key] = filters[locationFilter.key];
-      const splitQueryObject = splitFiltersFromQueryObject(newFilters, possibleFilters);
-
+      const splitQueryObject = splitFiltersFromQueryObject(queryObject, possibleFilters);
       const newFilters = { ...emptyFilters, ...splitQueryObject.filters };
       const tabValue = TYPES_BY_TAB_VALUE[newValue];
       // Apply new filters with the query object immediately:
@@ -287,7 +286,7 @@ export default function BrowseContent({
       filterChoices: metadata.options,
       propertyToFilterBy: "original_name",
       valueToFilterBy: value,
-    }).name;
+    })?.name;
   };
 
   const getQueryObjectFromUrl = (query) => {
@@ -374,6 +373,7 @@ export default function BrowseContent({
       locale: locale,
       nonFilterParams: nonFilterParams,
     });
+
     if (newUrl !== window?.location?.href) {
       window.history.pushState({}, "", newUrl);
     }
