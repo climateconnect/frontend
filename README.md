@@ -1,3 +1,5 @@
+[![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/)
+
 # Climate Connect
 
 The client and server code for the web platform on https://climateconnect.earth.
@@ -130,17 +132,25 @@ to re-create a super user to be used in the Django admin panel.
 
 #### Testing and Code Health
 
-For unit tests, to run the test suite use:
+For unit tests, run the entire test suite with
 
 ```sh
 make test
 ```
 
-Or a specific test file or test class:
+Or a specific test file, class, etc.:
 
 ```sh
 python manage.py test <file_path> or <file_path + class_name>
 ```
+
+Like,
+
+```
+python3 manage.py test climateconnect_api.tests.test_user_views.TestUserLoginView.test_successful_login_api
+```
+
+_Note: [can preserve the DB](https://docs.djangoproject.com/en/3.0/ref/django-admin/#cmdoption-test-keepdb) to save time on test iteration._
 
 For linting, we use [flake8](https://flake8.pycqa.org/en/latest/). Lint with
 

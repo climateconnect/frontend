@@ -1,4 +1,4 @@
-name: Python linting with flake8
+name: Backend CI
 on: [pull_request]
 
 jobs:
@@ -16,9 +16,15 @@ jobs:
           python-version: 3.8
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install flake8
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # python -m pip install --upgrade pip
+          cd backend
+          make install
       - name: Lint with flake8
         run: |
-          flake8 backend --count --select=E9,F6,F7,F8 --show-source --statistics
+          cd backend
+          make lint
+      - name: Run tests
+        run: |
+          cd backend
+          # make test
+          python3 manage.py test climateconnect_api.tests.test_user_views.TestSignUpView.test_signup_api_success
