@@ -4,3 +4,5 @@
 
 
 media/
+.pdm-python
+.dmypy.json

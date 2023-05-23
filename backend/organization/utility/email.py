@@ -7,7 +7,7 @@ from organization.utility.organization import get_organization_name
 from climateconnect_api.utility.email_setup import send_email
 from climateconnect_api.utility.translation import get_user_lang_code, get_user_lang_url
 from django.conf import settings
-from mailjet_rest import Client
+from mailjet_rest import Client  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ mailjet = Client(
 )
 
 
-def linkify_mentions(content):
+def linkify_mentions(content: str):
     r = re.compile("(@@@__(?P<url_slug>[^\^]*)\^\^__(?P<display>[^\@]*)@@@\^\^\^)")
     matches = re.findall(r, content)
 
