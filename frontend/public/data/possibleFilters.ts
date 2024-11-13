@@ -5,8 +5,47 @@ import GroupIcon from "@mui/icons-material/Group";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import getTexts from "../texts/texts";
+import { BrowseTabs, CcLocale, FilterChoices } from "../../src/types";
 
-export default function getFilters({ key, filterChoices, locale }) {
+type getFiltersParam = {
+  key: BrowseTabs | "all";
+  filterChoices: FilterChoices;
+  locale: CcLocale;
+};
+
+export type FilterKey =
+  | "city"
+  | "country"
+  | "location"
+  | "search"
+  | "skills"
+  | "organization_type"
+  | "status"
+  | "category"
+  | "collaboration";
+
+export type FilterTextDefinition = {
+  type: string;
+  key: FilterKey;
+};
+
+export type FilterDefinition = {
+  icon: any;
+  iconName: string;
+  title: string;
+  type: string;
+  key: FilterKey;
+  options?: any; // TODO
+  itemType?: string;
+  tooltipText?: string;
+};
+
+// TODO: rename to getPossibleFilters or getEmtpyFiltersObject
+export default function getFilters({
+  key,
+  filterChoices,
+  locale,
+}: getFiltersParam): (FilterTextDefinition | FilterDefinition)[] {
   const texts = getTexts({ page: "filter_and_search", locale: locale });
   const english_texts = getTexts({ page: "filter_and_search", locale: "en" });
   if (!filterChoices) {
@@ -34,11 +73,17 @@ export default function getFilters({ key, filterChoices, locale }) {
     ];
   }
 
-  console.log("possibleFilters invalid input:" + key);
+  console.error("possibleFilters invalid input:" + key);
   return [];
 }
 
-const getLocationFilters = (texts) => {
+const getLocationFilters = (texts): FilterDefinition[] => {
+  // FIXME: LocationFilters currently do not include
+  // place=108921958&osm=62403&loc_type=relation
+  // but these are the values stored within the url
+  // Therefore, sharing an URL containing filters (and thus the new state management)
+  // did not properly use the location filter
+
   if (process.env.ENABLE_LEGACY_LOCATION_FORMAT === "true") {
     return [
       {
@@ -69,16 +114,18 @@ const getLocationFilters = (texts) => {
   ];
 };
 
-const getSearchFilter = () => {
+const getSearchFilter = (): FilterTextDefinition => {
   return {
     type: "search",
     key: "search",
   };
 };
 
-const getIdeasFilters = (filterChoices, texts) => [...getLocationFilters(texts)];
+const getIdeasFilters = (filterChoices, texts): FilterDefinition[] => [
+  ...getLocationFilters(texts),
+];
 
-const getMembersFilters = (filterChoices, texts) => [
+const getMembersFilters = (filterChoices, texts): (FilterTextDefinition | FilterDefinition)[] => [
   ...getLocationFilters(texts),
   getSearchFilter(),
   {
@@ -93,7 +140,10 @@ const getMembersFilters = (filterChoices, texts) => [
   },
 ];
 
-const getOrganizationsFilters = (filterChoices, texts) => [
+const getOrganizationsFilters = (
+  filterChoices,
+  texts
+): (FilterTextDefinition | FilterDefinition)[] => [
   ...getLocationFilters(texts),
   getSearchFilter(),
   {
@@ -107,7 +157,11 @@ const getOrganizationsFilters = (filterChoices, texts) => [
   },
 ];
 
-const getProjectsFilters = (filterChoices, texts, english_texts) => [
+const getProjectsFilters = (
+  filterChoices,
+  texts,
+  english_texts
+): (FilterTextDefinition | FilterDefinition)[] => [
   ...getLocationFilters(texts),
   getSearchFilter(),
   {

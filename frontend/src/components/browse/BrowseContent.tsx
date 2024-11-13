@@ -4,31 +4,24 @@ import EmojiObjectsIcon from "@mui/icons-material/EmojiObjects";
 import _ from "lodash";
 import React, { Suspense, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Cookies from "universal-cookie";
-import getFilters from "../../../public/data/possibleFilters";
-import { splitFiltersFromQueryObject } from "../../../public/lib/filterOperations";
-import { loadMoreData } from "../../../public/lib/getDataOperations";
+import { loadDataBasedOnNewFilters } from "../../../public/lib/filterOperations";
+// import { loadMoreData } from "../../../public/lib/getDataOperations";
+import { loadMoreData } from "../../../public/lib/getCachedDataOperations";
 import { membersWithAdditionalInfo } from "../../../public/lib/getOptions";
 import { indicateWrongLocation, isLocationValid } from "../../../public/lib/locationOperations";
 import { getUserOrganizations } from "../../../public/lib/organizationOperations";
-import {
-  getInfoMetadataByType,
-  getReducedPossibleFilters,
-} from "../../../public/lib/parsingOperations";
-import {
-  findOptionByNameDeep,
-  getFilterUrl,
-  getSearchParams,
-} from "../../../public/lib/urlOperations";
 import getTexts from "../../../public/texts/texts";
-import FeedbackContext from "../context/FeedbackContext";
 import LoadingContext from "../context/LoadingContext";
 import UserContext from "../context/UserContext";
 import LoadingSpinner from "../general/LoadingSpinner";
 import MobileBottomMenu from "./MobileBottomMenu";
 import HubTabsNavigation from "../hub/HubTabsNavigation";
+import { BrowseTabs, FilterChoices } from "../../types";
+// import { useRouter } from "next/router";
 import HubSupporters from "../hub/HubSupporters";
 
 const FilterSection = React.lazy(() => import("../indexPage/FilterSection"));
+// TODO: shall be deleted in future
 const IdeasBoard = React.lazy(() => import("../ideas/IdeasBoard"));
 const OrganizationPreviews = React.lazy(() => import("../organization/OrganizationPreviews"));
 const ProfilePreviews = React.lazy(() => import("../profile/ProfilePreviews"));
@@ -73,16 +66,42 @@ const useStyles = makeStyles((theme) => {
   };
 });
 
+interface BrowseContentProps {
+  filterChoices: FilterChoices; // TODO (Karol): maybe rename it to filterOptions
+  initialLocationFilter: any;
+
+  // optional:
+  hubsSubHeaderRef?: any;
+  initialMembers?: any;
+  initialOrganizations?: any;
+  initialProjects?: any;
+  // TODO: remove in the future
+  initialIdeas?: any;
+  customSearchBarLabels?: any;
+  hideMembers?: boolean;
+  hubName?: any;
+  hubProjectsButtonRef?: any;
+  hubQuickInfoRef?: any;
+  nextStepTriggeredBy?: any;
+  // TODO: remove in the future
+  showIdeas?: boolean;
+  allHubs?: any;
+  initialIdeaUrlSlug?: string;
+  // TODO: remove in the future (only used by Idea Board)
+  hubLocation?: any;
+  hubData?: any;
+  hubUrl?: string;
+  hubAmbassador?: any;
+  contentRef?: any;
+  hubSupporters?: any;
+}
+
 export default function BrowseContent({
   initialMembers,
   initialOrganizations,
   initialProjects,
   initialIdeas,
-  applyNewFilters,
   customSearchBarLabels,
-  errorMessage,
-  filterChoices,
-  handleSetErrorMessage,
   hideMembers,
   hubName,
   hubProjectsButtonRef,
@@ -91,18 +110,17 @@ export default function BrowseContent({
   nextStepTriggeredBy,
   showIdeas,
   allHubs,
-  initialIdeaUrlSlug,
-  hubLocation,
   hubData,
-  filters,
-  handleUpdateFilterValues,
+
+  // filter related values
+  filterChoices, // dict. of possible filters and their values
   initialLocationFilter,
-  resetTabsWhereFiltersWereApplied,
+
   hubUrl,
   hubAmbassador,
   contentRef,
   hubSupporters,
-}: any) {
+}: BrowseContentProps) {
   const initialState = {
     items: {
       projects: initialProjects ? [...initialProjects.projects] : [],
@@ -129,12 +147,12 @@ export default function BrowseContent({
   const token = new Cookies().get("auth_token");
   //saving these refs for the tutorial
   const firstProjectCardRef = useRef(null);
-  const filterButtonRef = useRef(null);
   const organizationsTabRef = useRef(null);
 
+  // TODO: this is not used after the refactor: do we still need the legacy mode?
   const legacyModeEnabled = process.env.ENABLE_LEGACY_LOCATION_FORMAT === "true";
   const classes = useStyles();
-  const TYPES_BY_TAB_VALUE = hideMembers
+  const TYPES_BY_TAB_VALUE: BrowseTabs[] = hideMembers
     ? ["projects", "organizations"] // TODO: add "events" here, after implementing event calendar
     : ["projects", "organizations", "members"]; // TODO: add "events" here, after implementing event calendar
   if (showIdeas) {
@@ -143,8 +161,11 @@ export default function BrowseContent({
   const { locale } = useContext(UserContext);
   const texts = useMemo(() => getTexts({ page: "general", locale: locale }), [locale]);
 
-  const [hash, setHash] = useState<string | null>(null);
-  const [tabValue, setTabValue] = useState(hash ? TYPES_BY_TAB_VALUE.indexOf(hash) : 0);
+  // TODO: maybe rename this "hash" to "currentTab"
+  // TOOD: good location for a custom hook that keeps the url hash and this state in sync
+  const [hash, setHash] = useState<BrowseTabs>(TYPES_BY_TAB_VALUE[0]);
+  // TODO: maybe rename this "tabValue" to "currentIdx"
+  const [tabValue, setTabValue] = useState(0);
 
   const isNarrowScreen = useMediaQuery<Theme>((theme) => theme.breakpoints.down("md"));
   const type_names = {
@@ -153,10 +174,7 @@ export default function BrowseContent({
     members: texts.members,
     ideas: texts.ideas,
   };
-  // Always default to filters being expanded
-  const [filtersExpanded, setFiltersExpanded] = useState(true);
-  // On mobile filters take up the whole screen, so they aren't expanded by default
-  const [filtersExandedOnMobile, setFiltersExpandedOnMobile] = useState(false);
+
   const [state, setState] = useState(initialState);
   const locationInputRefs = {
     projects: useRef(null),
@@ -181,174 +199,133 @@ export default function BrowseContent({
       }
     })();
   });
-  // We have 2 distinct loading states: filtering, and loading more data. For
-  // each state, we want to treat the loading spinner a bit differently, hence
-  // why we have two separate pieces of state
-  const [isFiltering, setIsFiltering] = useState(false);
-  const [isFetchingMoreData, setIsFetchingMoreData] = useState(false);
 
-  const { showFeedbackMessage } = useContext(FeedbackContext);
+  const handleTabChange = (event, newValue) => {
+    newValue = parseInt(newValue, 10);
+    if (isNaN(newValue)) {
+      return;
+    }
+
+    const newTab = TYPES_BY_TAB_VALUE[newValue];
+    setHash(newTab);
+    setTabValue(newValue);
+    window.location.hash = newTab;
+
+    loadDataBasedOnUrl(newTab);
+  };
+
+  // ###################################################
+  // LOADING DATA FEATURES
   /**
    * Support the functionality of a user entering
    * a provided URL, that already has URL encoded
    * query params from a filter in it. In this use
    * case, we should automatically set the filters dynamically. Ensure
    * that this isn't invoked on extraneous renders.
+   *
+   * In fact, we use the url as the source of truth for the filters.
+   * Thus, the FilterSection update the URL and onURLChange the BrowseeContent
+   * will trigger a new query, await the data and distribute it to the
+   * different tabs views / components.
    */
-  const [initialized, setInitialized] = useState(false);
 
-  const [nonFilterParams, setNonFilterParams] = useState({});
+  // TODO: reimplemenation of the error message (previously used for invlaid location)
+  const [errorMessage, setErrorMessage] = useState("");
 
+  // load the hash from the URL on mount
   useEffect(() => {
-    const newHash = window?.location?.hash.replace("#", "");
+    const newHash = window?.location?.hash.replace("#", "") as BrowseTabs;
     if (window.location.hash) {
-      setHash(newHash);
-      setTabValue(TYPES_BY_TAB_VALUE.indexOf(newHash));
-    }
-    if (!initialized) {
-      // Update the state of the visual filters, like Select, Dialog, etc
-      // Then actually fetch the data. We need a way to map what's
-      // in the query param, to what UI element is present on the screen. For
-      // example, if we have a MultiLevelSelect dialog representing categories
-      // and we have a ?&category=Food waste, then we need to update the
-      // the MultiLevelSelect dialog's selection to that value somehow.
-
-      // For each query param option, ensure that it's
-      // split into array before spreading onto the new filters object.
-      const tabKey = newHash ? newHash : TYPES_BY_TAB_VALUE[0];
-      const possibleFilters = getFilters({
-        key: tabKey,
-        filterChoices: filterChoices,
-        locale: locale,
-      });
-      const queryObject = getQueryObjectFromUrl(getSearchParams(window.location.search));
-      const splitQueryObject = splitFiltersFromQueryObject(queryObject, possibleFilters);
-      const newFilters = {
-        ...splitQueryObject.filters,
-      };
-      setNonFilterParams(splitQueryObject.nonFilters);
-      if (splitQueryObject?.nonFilters?.message) {
-        showFeedbackMessage({
-          message: splitQueryObject.nonFilters.message,
-        });
+      const tabIdx = TYPES_BY_TAB_VALUE.indexOf(newHash);
+      if (tabIdx != -1) {
+        setHash(newHash);
+        setTabValue(tabIdx);
+        loadDataBasedOnUrl(newHash);
+      } else {
+        setHash(TYPES_BY_TAB_VALUE[0]);
+        setTabValue(0);
+        loadDataBasedOnUrl(TYPES_BY_TAB_VALUE[0]);
       }
-
-      if (initialLocationFilter) {
-        const locationFilter: any = possibleFilters.find((f) => f.type === "location");
-        newFilters[locationFilter.key] = initialLocationFilter;
-      }
-      // Apply new filters with the query object immediately:
-      handleApplyNewFilters({
-        type: tabKey,
-        newFilters: newFilters,
-        closeFilters: false,
-        nonFilterParams: splitQueryObject.nonFilters,
-      });
-
-      // And then update state
-      setInitialized(true);
     }
   }, []);
 
-  const handleTabChange = (event, newValue) => {
-    // Update the state of the visual filters, like Select, Dialog, etc
-    // Then actually fetch the data. We need a way to map what's
-    // in the query param, to what UI element is present on the screen. For
-    // example, if we have a MultiLevelSelect dialog representing categories
-    // and we have a ?&category=Food waste, then we need to update the
-    // the MultiLevelSelect dialog's selection to that value somehow.
+  /**
+   * Loads data based on the current URL or a new tab selection.
+   * This method is/should be called on URL change and tab change.
+   *
+   * @param {BrowseTabs} [newTab] - The new tab to load data for.
+   * If not provided, the current hash state is used.
+   * This value in nessary if this function is called on tab change. As setState(hash) is async,
+   * the hash state might not be updated yet.
+   * @returns {Promise<void>} - A promise that resolves when the data loading is complete.
+   */
+  const loadDataBasedOnUrl = async (newTab?: BrowseTabs) => {
+    // this method will be called on URL change and (!) on tab change
+    // if the tab changed, the hash State will be updated via setState
 
-    // For each query param option, ensure that it's
-    // split into array before spreading onto the new filters object.
-    const emptyFilters = getReducedPossibleFilters(
-      getFilters({
-        key: TYPES_BY_TAB_VALUE[0],
-        filterChoices: filterChoices,
-        locale: locale,
-      })
+    console.debug("[BrowseContent]: start filtering/loading");
+    setIsFiltering(true);
+
+    // clear current error message
+    setErrorMessage("");
+    // set the state to loading/filtering data
+    setIsFiltering(true);
+    // TODO: remove after rename
+    const currentTab = newTab ? newTab : hash;
+
+    const res = await loadDataBasedOnNewFilters(
+      currentTab,
+      // TODO: maybe be more carfull with "user input" (search params can be user/attacker controlled)
+      window.location.search,
+      filterChoices,
+      locale,
+      token,
+      hubUrl
     );
-    delete emptyFilters.location;
-    const queryObject = getQueryObjectFromUrl(getSearchParams(window.location.search));
-    //location is always set to "" here
+    // adjust data based on the result of applyNewFilters
+    if (res?.filteredItemsObject) {
+      // TODO: is a copy needed, as setState is only triggered after updating everything
+      const newState = state;
 
-    //persist the old location filter when switching tabs
-    const tabKey = TYPES_BY_TAB_VALUE[newValue];
+      newState.items[currentTab] = res.filteredItemsObject[currentTab];
+      newState.hasMore[currentTab] = res.filteredItemsObject.hasMore;
+      newState.nextPages[currentTab] = 2;
+      newState.urlEnding = res.newUrlEnding ?? "";
 
-    if (tabKey === "events") {
-      // TODO: add event calendar here!
-    } else {
-      const possibleFilters = getFilters({
-        key: tabKey,
-        filterChoices: filterChoices,
-        locale: locale,
-      });
-      const locationFilter: any = possibleFilters.find((f) => f.type === "location");
-      queryObject[locationFilter.key] = filters[locationFilter.key];
-      const splitQueryObject = splitFiltersFromQueryObject(
-        /*TODO(undefined) newFilters*/ queryObject,
-        possibleFilters
-      );
-
-      const newFilters = { ...emptyFilters, ...splitQueryObject.filters };
-      const tabValue = TYPES_BY_TAB_VALUE[newValue];
-      // Apply new filters with the query object immediately:
-      handleApplyNewFilters({
-        type: tabValue,
-        newFilters: newFilters,
-        closeFilters: false,
-        nonFilterParams: splitQueryObject.nonFilters,
-      });
+      setState(newState);
+      console.debug("[BrowseContent]: handle apply new filters: setting state success");
     }
-
-    window.location.hash = TYPES_BY_TAB_VALUE[newValue];
-    setTabValue(newValue);
+    setIsFiltering(false);
   };
 
-  /* We always save filter values in the url in english.
-                Therefore we need to get the name in the current language
-                when retrieving them from the query object */
-  const getValueInCurrentLanguage = (metadata, value) => {
-    return findOptionByNameDeep({
-      filterChoices: metadata.options,
-      propertyToFilterBy: "original_name",
-      valueToFilterBy: value,
-    }).name;
-  };
+  // Handle an URL Change
+  // extract filters and update data
 
-  const getQueryObjectFromUrl = (query) => {
-    const queryObject = _.cloneDeep(query);
-    const possibleFiltersMetadata = getFilters({
-      key: "all",
-      filterChoices: filterChoices,
-      locale: locale,
-    });
-    const splitQueryObject = splitFiltersFromQueryObject(queryObject, possibleFiltersMetadata);
-    for (const [key, value] of Object.entries(splitQueryObject.filters) as any) {
-      const metadata = possibleFiltersMetadata.find((f) => f.key === key);
+  // TODO: use the useRouter Hook (next router) to listen for URL changes
+  // TODO: this useEffect is not nessecary
+  //https://react.dev/learn/you-might-not-need-an-effect#subscribing-to-an-external-store
+  useEffect(() => {
+    const handleURLChange = () => {
+      const queryParams = new URLSearchParams(window.location.search);
+      console.debug("[BrowseContent]: url update => new URLSearchParams:", queryParams);
+      loadDataBasedOnUrl();
+    };
 
-      if (value.indexOf(",") > 0) {
-        queryObject[key] = value.split(",").map((v) => getValueInCurrentLanguage(metadata, v));
-      } else if (
-        metadata?.type === "multiselect" ||
-        metadata?.type === "openMultiSelectDialogButton"
-      ) {
-        queryObject[key] = [getValueInCurrentLanguage(metadata, value)];
-      } else if (key === "radius") {
-        queryObject[key] = value + "km";
-      }
-    }
-    return queryObject;
-  };
+    window.addEventListener("urlChange", handleURLChange);
+    return () => {
+      window.removeEventListener("urlChange", handleURLChange);
+    };
+  }, []);
 
-  const unexpandFilters = () => {
-    setFiltersExpanded(false);
-  };
+  // We have 2 distinct loading procedures: filtering, and loading more data. For
+  // each procedures, we want to treat the loading spinner a bit differently, hence
+  // why we have two separate pieces of state
 
-  const unexpandFiltersOnMobile = () => {
-    setFiltersExpandedOnMobile(false);
-  };
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [isFetchingMoreData, setIsFetchingMoreData] = useState(false);
+  const filterButtonRef = useRef(null);
 
-  const handleLoadMoreData = async (type) => {
+  const handleLoadMoreData = async (type: BrowseTabs) => {
     try {
       setIsFetchingMoreData(true);
       const res = await loadMoreData({
@@ -386,136 +363,17 @@ export default function BrowseContent({
     }
   };
 
-  /**
-   * Sets loading state to true to until the results are
-   * returned from applying the new filters. Then updates the
-   * state, and persists the new filters as query params in the URL.
-   */
-  const handleApplyNewFilters = async ({ type, newFilters, closeFilters, nonFilterParams }) => {
-    const newUrl = getFilterUrl({
-      activeFilters: newFilters,
-      infoMetadata: getInfoMetadataByType(type),
-      filterChoices: filterChoices,
-      locale: locale,
-      nonFilterParams: nonFilterParams,
-    });
-    if (newUrl !== window?.location?.href) {
-      window.history.pushState({}, "", newUrl);
-    }
-    // Only push state if there's a URL change. Be sure to account for the
-    // hash link / fragment on the end of the URL (e.g. #skills).
-
-    if (!legacyModeEnabled && newFilters.location && !isLocationValid(newFilters.location)) {
-      indicateWrongLocation(
-        locationInputRefs[type],
-        setLocationOptionsOpen,
-        handleSetErrorMessage,
-        texts
-      );
-      return;
-    }
-
-    handleSetErrorMessage("");
-    setIsFiltering(true);
-    const res = await applyNewFilters({
-      type: type,
-      newFilters: newFilters,
-      closeFilters: closeFilters,
-      nonFilterParams: nonFilterParams,
-    });
-    if (res?.closeFilters) {
-      if (isNarrowScreen) setFiltersExpandedOnMobile(false);
-      else setFiltersExpanded(false);
-    }
-
-    if (res?.filteredItemsObject) {
-      setState({
-        ...state,
-        items: { ...state.items, [type]: res.filteredItemsObject[type] },
-        hasMore: { ...state.hasMore, [type]: res.filteredItemsObject.hasMore },
-        urlEnding: res.newUrlEnding,
-        nextPages: { ...state.nextPages, [type]: 2 },
-      });
-    }
-    setIsFiltering(false);
-  };
-
-  /**
-   * Asynchonously get new projects, orgs or members. We render
-   * a loading spinner until the request is done.
-   */
-  const handleSearchSubmit = async (type, searchValue) => {
-    setIsFiltering(true);
-    const newFilters = { ...filters, search: searchValue };
-    const newUrl = getFilterUrl({
-      activeFilters: newFilters,
-      infoMetadata: getInfoMetadataByType(type),
-      filterChoices: filterChoices,
-      locale: locale,
-      nonFilterParams: nonFilterParams,
-    });
-    const res = await applyNewFilters({
-      type: type,
-      newFilters: newFilters,
-      closeFilters: false,
-    });
-    setIsFiltering(false);
-    if (newUrl !== window?.location?.href) {
-      window.history.pushState({}, "", newUrl);
-    }
-
-    if (res?.filteredItemsObject) {
-      setState({
-        ...state,
-        items: { ...state.items, [type]: res.filteredItemsObject[type] },
-        hasMore: { ...state.hasMore, [type]: res.filteredItemsObject.hasMore },
-        urlEnding: res.newUrlEnding,
-        nextPages: { ...state.nextPages, [type]: 2 },
-      });
-    }
-  };
-
-  const handleUpdateIdeaRating = (idea, newRating) => {
-    const ideaInState = state.items.ideas.find((si) => si.url_slug === idea.url_slug);
-    const ideaIndex = state.items.ideas.indexOf(ideaInState);
-    setState({
-      ...state,
-      items: {
-        ...state.items,
-        ideas: [
-          ...state.items.ideas.slice(0, ideaIndex),
-          {
-            ...idea,
-            rating: newRating,
-          },
-          ...state.items.ideas.slice(ideaIndex + 1),
-        ],
-      },
-    });
-  };
+  // END: LOADING DATA FEATURES
+  // ###################################################
 
   const tabContentWrapperProps = {
     tabValue: tabValue,
     TYPES_BY_TAB_VALUE: TYPES_BY_TAB_VALUE,
-    filtersExpanded: isNarrowScreen ? filtersExandedOnMobile : filtersExpanded,
-    handleApplyNewFilters: handleApplyNewFilters,
-    filters: filters,
-    handleUpdateFilterValues: handleUpdateFilterValues,
-    errorMessage: errorMessage,
-    isMobileScreen: isNarrowScreen,
-    filtersExandedOnMobile: filtersExandedOnMobile,
-    handleSetLocationOptionsOpen: handleSetLocationOptionsOpen,
-    locationInputRefs: locationInputRefs,
-    locationOptionsOpen: locationOptionsOpen,
-    filterChoices: filterChoices,
-    unexpandFiltersOnMobile: unexpandFiltersOnMobile,
-    unexpandFilters: unexpandFilters,
-    initialLocationFilter: initialLocationFilter,
     isFiltering: isFiltering,
     state: state,
     hubName: hubName,
-    nonFilterParams: nonFilterParams,
   };
+
   return (
     <LoadingContext.Provider
       value={{
@@ -540,16 +398,18 @@ export default function BrowseContent({
         )}
         <div ref={contentRef} className={classes.contentRef} />
         <Suspense fallback={null}>
+          {/* TODO */}
           <FilterSection
-            filtersExpanded={isNarrowScreen ? filtersExandedOnMobile : filtersExpanded}
-            onSubmit={handleSearchSubmit}
-            setFiltersExpanded={isNarrowScreen ? setFiltersExpandedOnMobile : setFiltersExpanded}
             type={TYPES_BY_TAB_VALUE[tabValue]}
             customSearchBarLabels={customSearchBarLabels}
             filterButtonRef={filterButtonRef}
-            searchValue={filters.search}
-            hideFilterButton={tabValue === TYPES_BY_TAB_VALUE.indexOf("ideas")}
             applyBackgroundColor={hubData?.hub_type === "location hub"}
+            errorMessage={errorMessage}
+            filterChoices={filterChoices}
+            handleSetLocationOptionsOpen={handleSetLocationOptionsOpen}
+            initialLocationFilter={initialLocationFilter}
+            locationInputRefs={locationInputRefs}
+            locationOptionsOpen={locationOptionsOpen}
           />
         </Suspense>
         {/* Desktop screens: show tabs under the search bar */}
@@ -624,7 +484,10 @@ export default function BrowseContent({
               />
             </TabContentWrapper>
           )}
-          <TabContentWrapper type={"ideas"} {...tabContentWrapperProps}>
+
+          {/* TODO: Idea Board shall be removed: handleUpdateIdeaRating is was already deleted, but this change might need to be
+          revoked so that the idea board can be removed with a seperate PR */}
+          {/* <TabContentWrapper type={"ideas"} {...tabContentWrapperProps}>
             <IdeasBoard
               hasMore={state.hasMore.ideas}
               loadFunc={() => handleLoadMoreData("ideas")}
@@ -639,7 +502,7 @@ export default function BrowseContent({
               resetTabsWhereFiltersWereApplied={resetTabsWhereFiltersWereApplied}
               filterChoices={filterChoices}
             />
-          </TabContentWrapper>
+          </TabContentWrapper> */}
         </Suspense>
       </Container>
       <Suspense fallback={null}>
