@@ -291,7 +291,9 @@ export default function Hub({
         isHubPage
         hubUrl={hubUrl}
         hideDonationCampaign
-        customFooterImage={hubData.custom_footer_image && getImageUrl(hubData.custom_footer_image)}
+        customFooterImage={
+          hubData?.custom_footer_image && getImageUrl(hubData?.custom_footer_image)
+        }
         isLocationHub={isLocationHub}
       >
         <ThemeProvider theme={hubThemeData ? transformThemeData(hubThemeData) : theme}>
