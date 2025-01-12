@@ -11,6 +11,7 @@ import Header from "../header/Header";
 import ElementSpaceToTop from "../hooks/ElementSpaceToTop";
 import DonationCampaignInformation from "../staticpages/donate/DonationCampaignInformation";
 import LayoutWrapper from "./LayoutWrapper";
+import CustomBackground from "../hub/CustomBackground";
 
 type ThemeProps = { noSpaceBottom?: boolean; isStaticPage?: boolean };
 const useStyles = makeStyles<Theme, ThemeProps>((theme) => ({
@@ -64,6 +65,7 @@ type Props = {
   customFooterImage?: string;
   isLocationHub?: boolean;
   noHeader?: boolean;
+  customTheme?: any;
 };
 //Wrapper layout component for pages where the content takes the whole width of the screen
 export default function WideLayout({
@@ -94,6 +96,7 @@ export default function WideLayout({
   hideDonationCampaign,
   customFooterImage,
   noHeader,
+  customTheme,
 }: Props) {
   const classes = useStyles({ noSpaceBottom: noSpaceBottom, isStaticPage: isStaticPage });
   const [alertOpen, setAlertOpen] = React.useState(true);
@@ -125,9 +128,11 @@ export default function WideLayout({
       noSpaceForFooter={noSpaceBottom}
       description={description}
       useFloodStdFont={useFloodStdFont}
-      theme={theme}
+      theme={customTheme ?? theme}
       image={image}
     >
+      <CustomBackground hubUrl={hubUrl} />
+
       {!noHeader && (
         <Header
           isStaticPage={isStaticPage}
