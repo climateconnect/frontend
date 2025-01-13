@@ -278,6 +278,7 @@ export default function Hub({
   const contextValues = {
     projectTypes: projectTypes,
   };
+  const currentTheme = hubThemeData ? transformThemeData(hubThemeData) : theme;
 
   return (
     <>
