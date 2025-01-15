@@ -120,6 +120,7 @@ export default function WideLayout({
   useEffect(() => {
     setAlertOpen(true);
   }, [message]);
+
   return (
     <LayoutWrapper
       title={title}
