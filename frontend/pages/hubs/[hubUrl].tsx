@@ -78,7 +78,6 @@ const DESCRIPTION_WEBFLOW_LINKS = {
 //potentially switch back to getinitialprops here?!
 export async function getServerSideProps(ctx) {
   const hubUrl = ctx.query.hubUrl;
-  const ideaToOpen = ctx.query.idea;
 
   const [
     hubData,
@@ -129,7 +128,6 @@ export async function getServerSideProps(ctx) {
       initialLocationFilter: location_filtered_by,
       sectorHubs: allHubs.filter((h) => h.hub_type === "sector hub"),
       allHubs: allHubs,
-      initialIdeaUrlSlug: ideaToOpen ? encodeURIComponent(ideaToOpen) : null,
       hubDescription: hubDescription,
       projectTypes: projectTypes,
       hubThemeData: hubThemeData,
@@ -154,7 +152,6 @@ export default function Hub({
   filterChoices,
   sectorHubs,
   allHubs,
-  initialIdeaUrlSlug,
   hubLocation,
   hubData,
   hubDescription,
@@ -183,17 +180,6 @@ export default function Hub({
     setErrorMessage(newMessage);
   };
   const contentRef = useRef(null);
-
-  /*
-   * When you share an idea through CreateIdeaDialog, you will be
-   * redirected to the idea's board with the new idea open.
-   * However this redirect does not reset state which is why we need
-   * this function to make sure ideas are caught again after refreshing.
-   * otherwise the idea's board will be empty.
-   */
-  const resetTabsWhereFiltersWereApplied = () => {
-    setTabsWhereFiltersWereApplied([]);
-  };
 
   useEffect(() => {
     (async () => {
@@ -234,7 +220,6 @@ export default function Hub({
       ? texts.search_profiles_in_location
       : texts.search_for_climate_actors_in_sector,
     profiles: texts.search_profiles_in_location,
-    ideas: texts.search_ideas_in_location,
   };
 
   const handleAddFilters = (newFilters) => {
@@ -259,7 +244,6 @@ export default function Hub({
       tabsWhereFiltersWereApplied: tabsWhereFiltersWereApplied,
       handleSetTabsWhereFiltersWereApplied: handleSetTabsWhereFiltersWereApplied,
       hubUrl: hubUrl,
-      idea: nonFilterParams?.idea,
     });
   };
 
@@ -366,12 +350,9 @@ export default function Hub({
               // initialOrganizations={initialOrganizations}
               // initialProjects={initialProjects}
               nextStepTriggeredBy={nextStepTriggeredBy}
-              showIdeas={false}
               allHubs={allHubs}
-              initialIdeaUrlSlug={initialIdeaUrlSlug}
               hubLocation={hubLocation}
               hubData={hubData}
-              resetTabsWhereFiltersWereApplied={resetTabsWhereFiltersWereApplied}
               hubUrl={hubUrl}
               tabNavigationRequested={requestTabNavigation}
               hubSupporters={hubSupporters}
